@@ -1,10 +1,4 @@
-Sure, setting up a virtual environment is a best practice to ensure that the dependencies of your project don't interfere with other projects. Here's how you can set it up and modify the README to reflect the changes:
-
-### 1. Update the `README.md`:
-
----
-
-# Document Embedding and Clustering
+# Semantic DoReMi
 
 This project provides a pipeline to preprocess, embed, and cluster large sets of text documents utilizing Ray for parallel processing, Hugging Face's `datasets` library for efficient data management, TF-IDF for embeddings, UMAP for dimensionality reduction, and FAISS for clustering.
 
