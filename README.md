@@ -1,23 +1,43 @@
-# Semantic DoReMi
+Sure, setting up a virtual environment is a best practice to ensure that the dependencies of your project don't interfere with other projects. Here's how you can set it up and modify the README to reflect the changes:
+
+### 1. Update the `README.md`:
+
+---
+
+# Document Embedding and Clustering
 
 This project provides a pipeline to preprocess, embed, and cluster large sets of text documents utilizing Ray for parallel processing, Hugging Face's `datasets` library for efficient data management, TF-IDF for embeddings, UMAP for dimensionality reduction, and FAISS for clustering.
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
-2. [Workflow Overview](#workflow-overview)
-3. [Usage](#usage)
+2. [Setup and Installation](#setup-and-installation)
+3. [Workflow Overview](#workflow-overview)
+4. [Usage](#usage)
 
 ## Prerequisites
 
 - Python 3.x
-- Ray
-- Hugging Face's `datasets`
-- Scikit-learn
-- UMAP
-- FAISS
+- pip (Python package installer)
+- venv (Python module to create virtual environments)
 
-Install these dependencies using:
+## Setup and Installation
+
+### Setting up a virtual environment:
+To avoid conflicts with other projects and system-wide packages, it's a good idea to use a virtual environment:
+
+```bash
+python -m venv venv_name
+```
+
+Activate the virtual environment:
+
+```bash
+source venv_name/bin/activate
+```
+
+### Installing Dependencies:
+With the virtual environment activated, install the project dependencies:
 
 ```bash
 pip install ray datasets scikit-learn umap-learn faiss-cpu
