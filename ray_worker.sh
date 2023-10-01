@@ -11,9 +11,7 @@ export CPUS=$CPUS
 
 ulimit -n 75000
 
-eval "$(/admin/home-<user_name>/miniconda3/bin/conda shell.bash hook)"
-conda activate vaemain
-
+source $(PWD)/venv/bin/activate
 
 # Convert memory to bytes
 MEM_BYTES=$((MEM * 1024 * 1024))
