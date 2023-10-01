@@ -1,14 +1,15 @@
 import argparse
 import ray
-import numpy as np
+from datasets import load_dataset, concatenate_datasets
 from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
 import pickle
 
 ray.init()
 
 @ray.remote
 def preprocess(doc):
-    """Preprocess the document by lowercasing it. Can be expanded for more complex preprocessing."""
+    """Preprocess the document by lowercasing it."""
     return doc.lower()
 
 @ray.remote
@@ -21,11 +22,13 @@ def tfidf_embedding_partial(docs, max_features, shared_vectorizer):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Embed documents using TF-IDF.")
     parser.add_argument('--max_features', type=int, default=5000, help="Maximum number of features for TF-IDF.")
+    parser.add_argument('--dataset', type=str, required=True, help="Name of the huggingface dataset to load.")
     
     args = parser.parse_args()
 
-    # Replace this with your document loading code
-    docs = ["sample doc 1", "sample doc 2"]  # Dummy data
+    # Load dataset from Hugging Face
+    dataset = load_dataset(args.dataset)
+    docs = [example['text'] for example in dataset]
 
     # Preprocess docs in parallel using Ray
     preprocessed_docs = ray.get([preprocess.remote(doc) for doc in docs])
@@ -42,8 +45,7 @@ if __name__ == '__main__':
 
     # Combine the chunks back into a full matrix
     tfidf_matrix = np.vstack(tfidf_matrices)
-
-    with open('embedded_docs.pkl', 'wb') as f:
-        pickle.dump(tfidf_matrix, f)
+    dataset = dataset.add_column("tfidf_embedding", tfidf_matrix.tolist())
+    dataset.save_to_disk('./embedded_dataset')
 
     ray.shutdown()
