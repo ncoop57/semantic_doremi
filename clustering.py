@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import umap
 import faiss
-import pickle
+from datasets import load_from_disk
 
 def umap_reduce(tfidf_matrix, n_components):
     """Reduce dimensionality of the embedded documents using UMAP."""
@@ -25,16 +25,15 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
 
-    with open('embedded_docs.pkl', 'rb') as f:
-        tfidf_matrix = pickle.load(f)
+    # Load the embedded dataset
+    dataset = load_from_disk('./embedded_dataset')
+    tfidf_matrix = np.array(dataset['tfidf_embedding'])
 
     # Reduce dimensions using UMAP
     embedded_docs = umap_reduce(tfidf_matrix, args.n_components)
 
     # Cluster using FAISS
     labels = cluster_docs(embedded_docs, args.n_clusters)
-
-    # Add cluster labels to documents as metadata
-    docs_with_metadata = [{"doc": doc, "cluster": label} for doc, label in zip(docs, labels)]
-
-    print(docs_with_metadata)
+    
+    dataset = dataset.add_column("cluster", labels)
+    dataset.save_to_disk('./clustered_dataset')
