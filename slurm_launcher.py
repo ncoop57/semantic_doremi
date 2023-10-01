@@ -1,52 +1,59 @@
 import submitit
+import os
+import time
 import argparse
-from pathlib import Path
 
-def run_embedding(args):
-    cmd = f'python embedding.py --max_features {args.max_features} --dataset {args.dataset}'
-    return cmd
+def run_ray_worker(global_rank, master_addr, cpus, mem_bytes, venv_path):
+    local_ip = os.popen("hostname -I | awk '{print $1}'").read().strip()
 
-def run_clustering(args):
-    cmd = f'python clustering.py --n_components {args.n_components} --n_clusters {args.n_clusters}'
-    return cmd
+    os.system(f"ulimit -n 75000")
+    os.system(f"source {venv_path}/bin/activate")
+
+    if global_rank == 0:
+        print(f"MASTER ADDR: {master_addr}\tGLOBAL RANK: {global_rank}\tCPUS PER TASK: {cpus}\tMEM PER NODE: {mem_bytes}")
+        os.system(f"ray start --head --port=6370 --node-ip-address={local_ip} --num-cpus={cpus} --block --resources='{{\"resource\": 100}}' --include-dashboard=true --object-store-memory=214748364800")
+    else:
+        time.sleep(10)
+        os.system(f"ray start --address={master_addr}:6370 --num-cpus={cpus} --block --resources='{{\"resource\": 100}}' --object-store-memory=214748364800")
+        print(f"Hello from worker {global_rank}")
+
+    time.sleep(10000000)
+
+def start_ray_cluster(venv_path):
+    global_rank = os.environ["SLURM_PROCID"]
+    cpus = os.environ["SLURM_CPUS_ON_NODE"]
+    mem = int(os.environ["SLURM_MEM_PER_NODE"])  # in MB
+    master_addr = os.popen('scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1').read().strip()
+    mem_bytes = mem * 1024 * 1024
+
+    if mem_bytes < 78643200:
+        print("Error: Memory is below 75MB. Exiting.")
+        exit(1)
+
+    run_ray_worker(global_rank, master_addr, cpus, mem_bytes, venv_path)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Launcher for Slurm jobs.")
-    parser.add_argument("--job", type=str, choices=["embedding", "clustering"], required=True, help="Which job to run: embedding or clustering.")
-    parser.add_argument('--max_features', type=int, default=5000, help="Maximum number of features for TF-IDF.")
-    parser.add_argument('--dataset', type=str, help="Name of the huggingface dataset to load.")
-    parser.add_argument('--n_components', type=int, default=50, help="Number of components for UMAP reduction.")
-    parser.add_argument('--n_clusters', type=int, default=100, help="Number of clusters for KMeans in FAISS.")
-    
-    # Slurm-specific parameters
-    parser.add_argument('--time', type=int, default=120, help="Max runtime in minutes for Slurm job.")
-    parser.add_argument('--cpus_per_task', type=int, default=2, help="Number of CPUs per task for Slurm job.")
-    parser.add_argument('--tasks_per_node', type=int, default=1, help="Number of tasks per node for Slurm job.")
-    parser.add_argument('--gpus_per_node', type=int, default=2, help="Number of GPUs per node for Slurm job.")
-    parser.add_argument('--nodes', type=int, default=1, help="Number of nodes for Slurm job.")
-    parser.add_argument('--mem_gb', type=int, default=32, help="Memory in GB for Slurm job.")
-    parser.add_argument('--slurm_partition', type=str, default="main", help="Slurm partition name.")
-    
+    parser = argparse.ArgumentParser(description="Start Ray cluster on Slurm using submitit.")
+    parser.add_argument("--venv_path", type=str, required=True, help="Path to the virtual environment directory")
+    parser.add_argument("--nodes", type=int, default=12, help="Number of nodes for the Slurm job")
+    parser.add_argument("--partition", type=str, default="g40", help="Slurm partition name")
+    parser.add_argument("--mem_gb", type=int, default=999, help="Memory in GB per node for the Slurm job")
+    parser.add_argument("--job_name", type=str, default="applied_ablation", help="Name of the Slurm job")
+    parser.add_argument("--account", type=str, default="stablegpt", help="Slurm account name")
+
     args = parser.parse_args()
 
-    # Configure the Slurm job using the parsed arguments
-    executor = submitit.AutoExecutor(folder=Path("./logs/{job}/{job}_logs"))
+    # Configure the Slurm job using submitit
+    executor = submitit.AutoExecutor(folder="raylogs")
     executor.update_parameters(
-        time=args.time,
-        cpus_per_task=args.cpus_per_task,
-        tasks_per_node=args.tasks_per_node,
-        gpus_per_node=args.gpus_per_node,
+        partition=args.partition,
+        job_name=args.job_name,
         nodes=args.nodes,
+        tasks_per_node=1,
+        exclusive=True,
         mem_gb=args.mem_gb,
-        slurm_partition=args.slurm_partition,
-        slurm_additional_parameters={"gres": f"gpu:{args.gpus_per_node}"},
-        slurm_script=Path("./job_template.sh"),
+        account=args.account
     )
 
-    if args.job == "embedding":
-        cmd = run_embedding(args)
-    elif args.job == "clustering":
-        cmd = run_clustering(args)
-
-    job = executor.submit(lambda: os.system(cmd))
-    print(f"Job {args.job} submitted with ID {job.job_id}")
+    job = executor.submit(start_ray_cluster, args.venv_path)
+    print(f"Ray Cluster started with Job ID: {job.job_id}")
