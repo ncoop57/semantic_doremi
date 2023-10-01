@@ -2,66 +2,65 @@
 
 This project provides tools to embed and cluster hundreds of millions of text documents using TF-IDF for embedding, UMAP for dimensionality reduction, and FAISS for clustering. The process is split into two main parts: embedding and clustering, each handled by a separate script. The workflow is optimized for execution on a Slurm cluster using the `submitit` library.
 
-### Requirements
+## Setup
 
-- Python 3.8+
-- A Slurm cluster (if running on a cluster)
-- Virtual Environment (recommended)
+### 1. Virtual Environment
 
-### Setup
+Before starting, ensure you have set up a Python virtual environment:
 
-1. **Clone the Repository:**
+```bash
+python -m venv /path/to/your/venv
+source /path/to/your/venv/bin/activate
+pip install -r requirements.txt
+```
 
-    ```bash
-    git clone https://github.com/ncoop57/semantic_doremi
-    cd semantic_doremi
-    ```
+Replace `/path/to/your/venv` with your desired directory for the virtual environment.
 
-2. **Set Up a Virtual Environment:**
+### 2. Ray Cluster Initialization
 
-    ```bash
-    python -m venv venv_name
-    source venv_name/bin/activate  # Use 'venv_name\Scripts\activate' on Windows
-    ```
+Start a Ray cluster on your Slurm environment using the following:
 
-3. **Install Dependencies:**
+```bash
+python ray_slurm_launcher.py --venv_path /path/to/your/venv --nodes 10 --partition your_partition --mem_gb 500 --job_name your_job_name --account your_account_name
+```
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+Adjust the arguments based on your requirements.
 
-### Running the Workflow
+### 3. Logging into the Ray Head Node
 
-1. **Embedding Documents:**
+Once your Ray cluster is up, identify the head node's IP (which is typically printed on the console). You can then SSH into this head node:
 
-    This step transforms text documents into embedded vectors. The embedding is performed using TF-IDF.
+```bash
+ssh ray_head_node_ip
+```
 
-    ```bash
-    python slurm_launcher.py --job embedding --dataset <huggingface_dataset_name> --max_features <max_features_for_tfidf>
-    ```
+Ensure that you have `ray` initialized and running on this head node.
 
-2. **Clustering Embedded Documents:**
+### 4. Running the Embedding Script
 
-    This step first reduces the embeddings using UMAP and then clusters the embedded vectors using FAISS.
+With your Ray cluster active and while logged into the head node, run the embedding script:
 
-    ```bash
-    python slurm_launcher.py --job clustering --n_components <num_umap_components> --n_clusters <num_clusters>
-    ```
+```bash
+source /path/to/your/venv/bin/activate
+python embedding.py --dataset <huggingface_dataset_name> --max_features <max_features_for_tfidf>
+```
 
-### Slurm Configuration
+Replace <huggingface_dataset_name> with the name or path of the dataset you want to load from the Hugging Face library. The script will save the embedded dataset to ./embedded_dataset.
 
-The `slurm_launcher.py` script provides arguments for configuring your Slurm job requirements:
+## Embedding & Clustering
 
-- `time`: Max runtime in minutes for Slurm job. Default is `120`.
-- `cpus_per_task`: Number of CPUs per task. Default is `2`.
-- `tasks_per_node`: Number of tasks per node. Default is `1`.
-- `gpus_per_node`: Number of GPUs per node. Default is `2`.
-- `nodes`: Number of nodes. Default is `1`.
-- `mem_gb`: Memory in GB. Default is `32`.
-- `slurm_partition`: Slurm partition name. Default is `main`.
+1. **Embedding**: Uses Ray for distributed processing to embed text documents using TF-IDF and UMAP reduction.
 
-These arguments can be provided to the `slurm_launcher.py` script when launching your jobs.
+2. **Clustering**: Once you have the embeddings, you can proceed to cluster them using FAISS:
 
-### Note on Virtual Environments
+```bash
+python clustering.py --n_components <num_umap_components> --n_clusters <num_clusters>
+```
 
-When submitting jobs to Slurm using the provided job template (`job_template.sh`), the virtual environment you set up in the **Setup** section is automatically activated on the Slurm nodes. Ensure the path to the virtual environment in the `job_template.sh` script is correctly set.
+This script will load the previously embedded dataset, perform UMAP reduction, and cluster the data using FAISS. The resulting dataset with cluster labels will be saved to ./clustered_dataset.
+
+## Additional Notes
+
+- Ensure that you have appropriate permissions and necessary resources (nodes, memory, etc.) allocated for your Slurm jobs.
+- Ensure your dataset is in a format compatible with HuggingFace's `datasets` library.
+- Monitor your Ray cluster's health and logs for any anomalies during execution.
