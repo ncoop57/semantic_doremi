@@ -8,4 +8,4 @@
 #SBATCH --output=raylogs/%x_%j.out
 #SBATCH --account stablegpt
 
-srun --account stablegpt sh /admin/home-<user_name>/ray_worker.sh
+srun --account stablegpt sh $(PWD)/ray_worker.sh
