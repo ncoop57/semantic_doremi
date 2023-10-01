@@ -1,43 +1,55 @@
 # Semantic DoReMi
 
-This project provides a scalable solution to embed and cluster a large number of text documents using Ray for parallelization, TF-IDF for embedding, UMAP for dimensionality reduction, and KMeans for clustering.
+This project provides a pipeline to preprocess, embed, and cluster large sets of text documents utilizing Ray for parallel processing, Hugging Face's `datasets` library for efficient data management, TF-IDF for embeddings, UMAP for dimensionality reduction, and FAISS for clustering.
 
-## Requirements
+## Table of Contents
 
-Make sure to install the required packages using:
+1. [Prerequisites](#prerequisites)
+2. [Workflow Overview](#workflow-overview)
+3. [Usage](#usage)
 
-```
-pip install -r requirements.txt
-```
+## Prerequisites
 
-## How to Run
+- Python 3.x
+- Ray
+- Hugging Face's `datasets`
+- Scikit-learn
+- UMAP
+- FAISS
 
-1. First, place your documents in an appropriate data structure (e.g., a list) within the main script or load them from an external source.
-2. Use the following command to execute the clustering:
+Install these dependencies using:
 
-```
-python embed_and_cluster.py --max_features [NUM_FEATURES] --n_components [NUM_COMPONENTS] --n_clusters [NUM_CLUSTERS]
-```
-
-## Parameters
-
-- `--max_features`: Maximum number of features for TF-IDF (default: 5000).
-- `--n_components`: Number of components for UMAP reduction (default: 50).
-- `--n_clusters`: Number of clusters for KMeans (default: 100).
-
-## Output
-
-The script will output a list of dictionaries, where each dictionary represents a document and its associated cluster label. For instance:
-
-```
-[
-    {"doc": "sample doc 1", "cluster": 2},
-    {"doc": "sample doc 2", "cluster": 5},
-    ...
-]
+```bash
+pip install ray datasets scikit-learn umap-learn faiss-cpu
 ```
 
-## Notes
+## Workflow Overview
 
-- The preprocessing function currently only lowercases the document. You might want to extend this with more complex preprocessing steps like tokenization, stop-word removal, etc.
-- Adjust the hyperparameters for the models as needed. The provided ones serve as reasonable defaults for general purposes.
+1. **Embedding** (`embedding.py`):
+    - Loads a dataset using the `datasets` library from Hugging Face.
+    - Preprocesses and embeds the texts using TF-IDF.
+    - Stores the embeddings back into the dataset and saves it to disk.
+
+2. **Clustering** (`clustering.py`):
+    - Loads the dataset with embeddings.
+    - Uses UMAP for dimensionality reduction.
+    - Clusters the reduced embeddings using FAISS's KMeans.
+    - Stores the cluster labels back to the dataset and saves it.
+
+## Usage
+
+1. **Embedding**:
+   
+   ```bash
+   python embedding.py --max_features 5000 --dataset <huggingface_dataset_name>
+   ```
+
+   Replace `<huggingface_dataset_name>` with the name or path of the dataset you want to load from the Hugging Face library. The script will save the embedded dataset to `./embedded_dataset`.
+
+2. **Clustering**:
+
+   ```bash
+   python clustering.py --n_components 50 --n_clusters 100
+   ```
+
+   This script will load the previously embedded dataset, perform UMAP reduction, and cluster the data using FAISS. The resulting dataset with cluster labels will be saved to `./clustered_dataset`.
