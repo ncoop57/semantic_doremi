@@ -1,69 +1,67 @@
 # Semantic DoReMi
 
-This project provides a pipeline to preprocess, embed, and cluster large sets of text documents utilizing Ray for parallel processing, Hugging Face's `datasets` library for efficient data management, TF-IDF for embeddings, UMAP for dimensionality reduction, and FAISS for clustering.
+This project provides tools to embed and cluster hundreds of millions of text documents using TF-IDF for embedding, UMAP for dimensionality reduction, and FAISS for clustering. The process is split into two main parts: embedding and clustering, each handled by a separate script. The workflow is optimized for execution on a Slurm cluster using the `submitit` library.
 
-## Table of Contents
+### Requirements
 
-1. [Prerequisites](#prerequisites)
-2. [Setup and Installation](#setup-and-installation)
-3. [Workflow Overview](#workflow-overview)
-4. [Usage](#usage)
+- Python 3.8+
+- A Slurm cluster (if running on a cluster)
+- Virtual Environment (recommended)
 
-## Prerequisites
+### Setup
 
-- Python 3.x
-- pip (Python package installer)
-- venv (Python module to create virtual environments)
+1. **Clone the Repository:**
 
-## Setup and Installation
+    ```bash
+    git clone https://github.com/ncoop57/semantic_doremi
+    cd semantic_doremi
+    ```
 
-### Setting up a virtual environment:
-To avoid conflicts with other projects and system-wide packages, it's a good idea to use a virtual environment:
+2. **Set Up a Virtual Environment:**
 
-```bash
-python -m venv venv_name
-```
+    ```bash
+    python -m venv venv_name
+    source venv_name/bin/activate  # Use 'venv_name\Scripts\activate' on Windows
+    ```
 
-Activate the virtual environment:
+3. **Install Dependencies:**
 
-```bash
-source venv_name/bin/activate
-```
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-### Installing Dependencies:
-With the virtual environment activated, install the project dependencies:
+### Running the Workflow
 
-```bash
-pip install ray datasets scikit-learn umap-learn faiss-cpu
-```
+1. **Embedding Documents:**
 
-## Workflow Overview
+    This step transforms text documents into embedded vectors. The embedding is performed using TF-IDF.
 
-1. **Embedding** (`embedding.py`):
-    - Loads a dataset using the `datasets` library from Hugging Face.
-    - Preprocesses and embeds the texts using TF-IDF.
-    - Stores the embeddings back into the dataset and saves it to disk.
+    ```bash
+    python slurm_launcher.py --job embedding --dataset <huggingface_dataset_name> --max_features <max_features_for_tfidf>
+    ```
 
-2. **Clustering** (`clustering.py`):
-    - Loads the dataset with embeddings.
-    - Uses UMAP for dimensionality reduction.
-    - Clusters the reduced embeddings using FAISS's KMeans.
-    - Stores the cluster labels back to the dataset and saves it.
+2. **Clustering Embedded Documents:**
 
-## Usage
+    This step first reduces the embeddings using UMAP and then clusters the embedded vectors using FAISS.
 
-1. **Embedding**:
-   
-   ```bash
-   python embedding.py --max_features 5000 --dataset <huggingface_dataset_name>
-   ```
+    ```bash
+    python slurm_launcher.py --job clustering --n_components <num_umap_components> --n_clusters <num_clusters>
+    ```
 
-   Replace `<huggingface_dataset_name>` with the name or path of the dataset you want to load from the Hugging Face library. The script will save the embedded dataset to `./embedded_dataset`.
+### Slurm Configuration
 
-2. **Clustering**:
+The `slurm_launcher.py` script provides arguments for configuring your Slurm job requirements:
 
-   ```bash
-   python clustering.py --n_components 50 --n_clusters 100
-   ```
+- `time`: Max runtime in minutes for Slurm job. Default is `120`.
+- `cpus_per_task`: Number of CPUs per task. Default is `2`.
+- `tasks_per_node`: Number of tasks per node. Default is `1`.
+- `gpus_per_node`: Number of GPUs per node. Default is `2`.
+- `nodes`: Number of nodes. Default is `1`.
+- `mem_gb`: Memory in GB. Default is `32`.
+- `slurm_partition`: Slurm partition name. Default is `main`.
 
-   This script will load the previously embedded dataset, perform UMAP reduction, and cluster the data using FAISS. The resulting dataset with cluster labels will be saved to `./clustered_dataset`.
+These arguments can be provided to the `slurm_launcher.py` script when launching your jobs.
+
+### Note on Virtual Environments
+
+When submitting jobs to Slurm using the provided job template (`job_template.sh`), the virtual environment you set up in the **Setup** section is automatically activated on the Slurm nodes. Ensure the path to the virtual environment in the `job_template.sh` script is correctly set.
