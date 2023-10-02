@@ -3,9 +3,8 @@ import ray
 from datasets import load_dataset, concatenate_datasets
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
-import pickle
 
-ray.init()
+ray.init(include_dashboard=True, dashboard_host='0.0.0.0', dashboard_port=8265)
 
 @ray.remote
 def preprocess(doc):
@@ -27,7 +26,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Load dataset from Hugging Face
-    dataset = load_dataset(args.dataset)
+    dataset = load_dataset(args.dataset)["train"]
+    dataset = dataset.select(range(10_000))
     docs = [example['text'] for example in dataset]
 
     # Preprocess docs in parallel using Ray
@@ -35,12 +35,13 @@ if __name__ == '__main__':
 
     # Construct a shared vocabulary based on the entire document set
     global_vectorizer = TfidfVectorizer(max_features=args.max_features)
-    global_vectorizer.fit(preprocessed_docs)
+    global_vectorizer.fit(preprocessed_docs[:1000])
     shared_vocabulary = global_vectorizer.vocabulary_
 
     # Split documents into chunks and process in parallel using Ray
-    chunk_size = len(docs) // ray.available_resources()['CPU']
-    doc_chunks = [docs[i:i + chunk_size] for i in range(0, len(docs), chunk_size)]
+    chunk_size = int(len(docs) // ray.available_resources()['CPU'])
+    print(f"Chunk size: {chunk_size}")
+    doc_chunks = [preprocessed_docs[i:i + chunk_size] for i in range(0, len(preprocessed_docs), chunk_size)]
     tfidf_matrices = ray.get([tfidf_embedding_partial.remote(chunk, args.max_features, shared_vocabulary) for chunk in doc_chunks])
 
     # Combine the chunks back into a full matrix

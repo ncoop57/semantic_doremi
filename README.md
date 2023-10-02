@@ -1,6 +1,6 @@
 # Semantic DoReMi
 
-This project provides tools to embed and cluster hundreds of millions of text documents using TF-IDF for embedding, UMAP for dimensionality reduction, and FAISS for clustering. The process is split into two main parts: embedding and clustering, each handled by a separate script. The workflow is optimized for execution on a Slurm cluster using the `submitit` library.
+This project provides tools to embed and cluster hundreds of millions of text documents using TF-IDF for embedding, UMAP for dimensionality reduction, and FAISS for clustering. The process is split into two main parts: embedding and clustering, each handled by a separate script. The workflow is optimized for execution on a Slurm cluster.
 
 ## Setup
 
@@ -18,13 +18,11 @@ Replace `/path/to/your/venv` with your desired directory for the virtual environ
 
 ### 2. Ray Cluster Initialization
 
-Start a Ray cluster on your Slurm environment using the following:
+Start a Ray cluster on your Slurm environment by first modifying the file `ray_launch.sh` to modify the number of nodes, partition name, memory of each node, job name, and account. Once you are happy with it, you can launch using standard sbatch:
 
 ```bash
-python ray_slurm_launcher.py --venv_path /path/to/your/venv --nodes 10 --partition your_partition --mem_gb 500 --job_name your_job_name --account your_account_name
+sbatch ray_launch.sh
 ```
-
-Adjust the arguments based on your requirements.
 
 ### 3. Logging into the Ray Head Node
 
@@ -47,14 +45,12 @@ python embedding.py --dataset <huggingface_dataset_name> --max_features <max_fea
 
 Replace <huggingface_dataset_name> with the name or path of the dataset you want to load from the Hugging Face library. The script will save the embedded dataset to ./embedded_dataset.
 
-## Embedding & Clustering
+### 5. Running the Clustering Script
 
-1. **Embedding**: Uses Ray for distributed processing to embed text documents using TF-IDF and UMAP reduction.
-
-2. **Clustering**: Once you have the embeddings, you can proceed to cluster them using FAISS:
+You no longer need the ray cluster since we won't be using any distributed UMAP and FAISS. Therefore, launch a separate CPU job that will just be one node by modifying the file `cluster_launch.sh` script to your liking. Then run it similar to the ray launching script:
 
 ```bash
-python clustering.py --n_components <num_umap_components> --n_clusters <num_clusters>
+sbatch cluser_launch.sh
 ```
 
 This script will load the previously embedded dataset, perform UMAP reduction, and cluster the data using FAISS. The resulting dataset with cluster labels will be saved to ./clustered_dataset.

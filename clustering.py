@@ -32,6 +32,9 @@ if __name__ == '__main__':
     # Reduce dimensions using UMAP
     embedded_docs = umap_reduce(tfidf_matrix, args.n_components)
 
+    # Add the reduced dimensionality embeddings to the dataset
+    dataset = dataset.add_column("umap_embedding", embedded_docs.tolist())
+
     # Cluster using FAISS
     labels = cluster_docs(embedded_docs, args.n_clusters)
     

@@ -7,14 +7,16 @@ def run_ray_worker(global_rank, master_addr, cpus, mem_bytes, venv_path):
     local_ip = os.popen("hostname -I | awk '{print $1}'").read().strip()
 
     os.system(f"ulimit -n 75000")
-    os.system(f"source {venv_path}/bin/activate")
+    ray_path = os.path.join(venv_path, "bin", "ray")
+    # os.system(f"{ray_python_path} -m ray start ...")
+    # os.system(f"source {venv_path}/bin/activate")
 
     if global_rank == 0:
         print(f"MASTER ADDR: {master_addr}\tGLOBAL RANK: {global_rank}\tCPUS PER TASK: {cpus}\tMEM PER NODE: {mem_bytes}")
-        os.system(f"ray start --head --port=6370 --node-ip-address={local_ip} --num-cpus={cpus} --block --resources='{{\"resource\": 100}}' --include-dashboard=true --object-store-memory=214748364800")
+        os.system(f"{ray_path} start --head --port=6370 --node-ip-address={local_ip} --num-cpus={cpus} --block --resources='{{\"resource\": 100}}' --include-dashboard=true --object-store-memory=214748364800")
     else:
         time.sleep(10)
-        os.system(f"ray start --address={master_addr}:6370 --num-cpus={cpus} --block --resources='{{\"resource\": 100}}' --object-store-memory=214748364800")
+        os.system(f"{ray_path} start --address={master_addr}:6370 --num-cpus={cpus} --block --resources='{{\"resource\": 100}}' --object-store-memory=214748364800")
         print(f"Hello from worker {global_rank}")
 
     time.sleep(10000000)
@@ -46,6 +48,7 @@ if __name__ == "__main__":
     # Configure the Slurm job using submitit
     executor = submitit.AutoExecutor(folder="raylogs")
     executor.update_parameters(
+        time=120,
         partition=args.partition,
         job_name=args.job_name,
         nodes=args.nodes,

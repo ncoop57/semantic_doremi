@@ -11,7 +11,7 @@ export CPUS=$CPUS
 
 ulimit -n 75000
 
-source $(PWD)/venv/bin/activate
+# source $PWD/venv/bin/activate
 
 # Convert memory to bytes
 MEM_BYTES=$((MEM * 1024 * 1024))
@@ -29,12 +29,12 @@ if [ $GLOBAL_RANK -eq 0 ]; then
     echo -e "MASTER ADDR: $MASTER_ADDR\tGLOBAL RANK: $GLOBAL_RANK\tCPUS PER TASK: $CPUS\tMEM PER NODE: $MEM_BYTES"
 
     # start the head node
-    ray start --head --port=6370 --node-ip-address=$LOCAL_IP --num-cpus=$CPUS --block --resources='{"resource": 100}' --include-dashboard=true --object-store-memory=214748364800
+    $PWD/venv/bin/ray start --head --port=6370 --node-ip-address=$LOCAL_IP --num-cpus=$CPUS --block --resources='{"resource": 100}' --include-dashboard=true --object-store-memory=$MEM_BYTES
 else
     sleep 10
 
     # start worker nodes
-    ray start --address=$MASTER_ADDR:6370 --num-cpus=$CPUS --block --resources='{"resource": 100}' --object-store-memory=214748364800
+    $PWD/venv/bin/ray start --address=$MASTER_ADDR:6370 --num-cpus=$CPUS --block --resources='{"resource": 100}' --object-store-memory=$MEM_BYTES
     echo "Hello from worker $GLOBAL_RANK"
 fi
 
