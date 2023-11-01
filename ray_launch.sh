@@ -1,11 +1,15 @@
 #!/bin/bash
-#SBATCH --partition=cpu24
+#SBATCH --partition=g40
 #SBATCH --job-name=semantic_doremi
-#SBATCH --nodes 2
+#SBATCH --nodes 1
 #SBATCH --ntasks-per-node 1
+#SBATCH --gres=gpu:8
+#SBATCH --cpus-per-gpu=6
 #SBATCH --exclusive
 #SBATCH --mem=64g
 #SBATCH --output=raylogs/%x_%j.out
-#SBATCH --account stability
+#SBATCH --account stablegpt
+#SBATCH --exclude=ip-26-0-152-47
+#SBATCH --time=05:00:00
 
-srun --account stability sh $PWD/ray_worker.sh
+srun --account stablegpt sh $PWD/ray_worker.sh

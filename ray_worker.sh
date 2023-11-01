@@ -29,7 +29,7 @@ if [ $GLOBAL_RANK -eq 0 ]; then
     echo -e "MASTER ADDR: $MASTER_ADDR\tGLOBAL RANK: $GLOBAL_RANK\tCPUS PER TASK: $CPUS\tMEM PER NODE: $MEM_BYTES"
 
     # start the head node
-    $PWD/venv/bin/ray start --head --port=6370 --node-ip-address=$LOCAL_IP --num-cpus=$CPUS --block --resources='{"resource": 100}' --include-dashboard=true --object-store-memory=$MEM_BYTES
+    $PWD/venv/bin/ray start --head --port=6370 --node-ip-address=$LOCAL_IP --num-cpus=$CPUS --block --resources='{"resource": 100}' --include-dashboard=true --object-store-memory=$MEM_BYTES --temp-dir='/admin/home-nathan/semantic_doremi/ray_tmp'
 else
     sleep 10
 

@@ -1,6 +1,8 @@
-ray[default]==2.7.0
-scikit-learn==1.3.1
-umap-learn==0.5.4
-submitit==1.4.6
-datasets==2.14.5
-faiss-cpu==1.7.4
+ray[default]
+scikit-learn
+umap-learn
+submitit
+datasets
+faiss-cpu
+transformers
+s3fs

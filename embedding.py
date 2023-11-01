@@ -1,17 +1,27 @@
+import fsspec
+import os
 import argparse
 import ray
-from datasets import load_dataset, concatenate_datasets
+
+import pandas as pd
+from ray import data as ray_data
 from sklearn.feature_extraction.text import TfidfVectorizer
+from transformers import AutoTokenizer, AutoModel
+from tqdm import tqdm
+
 import numpy as np
 
-ray.init(include_dashboard=True, dashboard_host='0.0.0.0', dashboard_port=8265)
+fs = fsspec.filesystem("s3")
+# ray.init(include_dashboard=True, dashboard_host='0.0.0.0', dashboard_port=8265)
+ray.init(address="auto", ignore_reinit_error=True, _temp_dir='./ray_tmp')
 
-@ray.remote
-def preprocess(doc):
-    """Preprocess the document by lowercasing it."""
-    return doc.lower()
 
-@ray.remote
+model_name = "jinaai/jina-embeddings-v2-small-en"
+
+def preprocess(batch):
+    """Preprocess a batch of documents by lowercasing them."""
+    return [doc['text'].lower() for doc in batch]
+
 def tfidf_embedding_partial(docs, max_features, shared_vectorizer):
     """Embed a portion of the documents using TF-IDF."""
     vectorizer = TfidfVectorizer(vocabulary=shared_vectorizer, max_features=max_features)
@@ -21,32 +31,38 @@ def tfidf_embedding_partial(docs, max_features, shared_vectorizer):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Embed documents using TF-IDF.")
     parser.add_argument('--max_features', type=int, default=5000, help="Maximum number of features for TF-IDF.")
-    parser.add_argument('--dataset', type=str, required=True, help="Name of the huggingface dataset to load.")
-    
+    # parser.add_argument('--dataset_path', type=str, required=True, help="Path to the Parquet dataset.")
+
     args = parser.parse_args()
 
-    # Load dataset from Hugging Face
-    dataset = load_dataset(args.dataset)["train"]
-    dataset = dataset.select(range(10_000))
-    docs = [example['text'] for example in dataset]
+    # Read Parquet dataset using Ray
+    file_list = fs.glob("s3://pile-everything-west/redpajama_raw/c4/*.jsonl")
+    file_list = ['s3://' + string for string in file_list][:2]
+    dataset = ray_data.read_json(file_list)
 
-    # Preprocess docs in parallel using Ray
-    preprocessed_docs = ray.get([preprocess.remote(doc) for doc in docs])
+    # Preprocess docs using Ray's .map() function
+    preprocessed_docs = dataset.map(preprocess).flatten()
 
-    # Construct a shared vocabulary based on the entire document set
+    # Collect a sample for constructing the shared vocabulary
+    sample_docs = preprocessed_docs.take(1000)
     global_vectorizer = TfidfVectorizer(max_features=args.max_features)
-    global_vectorizer.fit(preprocessed_docs[:1000])
+    global_vectorizer.fit(sample_docs)
     shared_vocabulary = global_vectorizer.vocabulary_
 
-    # Split documents into chunks and process in parallel using Ray
-    chunk_size = int(len(docs) // ray.available_resources()['CPU'])
-    print(f"Chunk size: {chunk_size}")
-    doc_chunks = [preprocessed_docs[i:i + chunk_size] for i in range(0, len(preprocessed_docs), chunk_size)]
-    tfidf_matrices = ray.get([tfidf_embedding_partial.remote(chunk, args.max_features, shared_vocabulary) for chunk in doc_chunks])
-
-    # Combine the chunks back into a full matrix
-    tfidf_matrix = np.vstack(tfidf_matrices)
-    dataset = dataset.add_column("tfidf_embedding", tfidf_matrix.tolist())
+    # Embed documents using TF-IDF and Ray
+    tfidf_matrices = preprocessed_docs.map_partitions(
+        lambda batch: tfidf_embedding_partial(batch, args.max_features, shared_vocabulary)
+    )
+    
+    # Save the dataset
+    dataset = dataset.add_column("tfidf_embedding", tfidf_matrices)
     dataset.save_to_disk('./embedded_dataset')
+
+    # Ensure that your output path ends with ".parquet" if you're saving in the Parquet format.
+    # output_path = "path_to_save/your_embedded_dataset.parquet"
+    # tfidf_matrices.write_parquet(output_path)
+
+    # dataset = dataset.add_column("tfidf_embedding", tfidf_matrices)
+    # dataset.save_to_disk('./embedded_dataset')
 
     ray.shutdown()
