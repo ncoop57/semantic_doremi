@@ -28,11 +28,15 @@ def worker(file_list):
             "retries": {"max_attempts": 10},
             "max_pool_connections": 512
         }
-    )
+    )   
+
     for x in tqdm(file_list, desc="Files", position=0):
+        if out_fs.exists(x.replace("redpajama_raw","redpajama_processed")):
+            print("File already exists: " + x)
+            continue
         with out_fs.open(x, "rb") as f:
             df = pd.read_json(f, lines=True)
-        batch_size = 8192 # 16384, 32768, 65536
+        batch_size = 768 # 16384, 32768, 65536
         n = len(df)
         splits = n // batch_size
         batches = np.array_split(df, splits)
@@ -40,7 +44,7 @@ def worker(file_list):
         for batch in tqdm(batches, desc="Batches", position=1, leave=False):
             try:
                 torch.cuda.empty_cache()
-                embeddings = model.encode(batch["text"].tolist(), max_length=1024)
+                embeddings = model.encode(batch["text"].tolist(), max_length=1024, batch_size=batch_size)
             except Exception as e:
                 print(e)
                 slurm_job_id = os.environ["SLURM_JOB_ID"]
@@ -55,8 +59,24 @@ def worker(file_list):
         print("Done with file: " + x)
 
 file_list.sort()
-
-partitions = 8*1
+# filter out files that have already been processed
+processed_fs = fsspec.filesystem(
+    "s3",
+    config_kwargs={
+        "retries": {"max_attempts": 10},
+        "max_pool_connections": 512
+    }
+)
+processed_file_list = processed_fs.glob("s3://pile-everything-west/redpajama_processed/c4/*.jsonl")
+processed_file_list = ['s3://' + string.replace("redpajama_processed","redpajama_raw") for string in processed_file_list]
+processed_file_list.sort()
+print(f"Processing {len(file_list)} files")
+file_list = np.setdiff1d(file_list, processed_file_list)
+print(f"Processed {len(processed_file_list)} files")
+print(f"Processing {len(file_list)} files")
+gpus = 8
+nodes = 4
+partitions = gpus * nodes # 8 is gpus and 1 is nodes
 
 file_list = np.array_split(file_list, partitions)
 
