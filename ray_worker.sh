@@ -13,7 +13,7 @@ rm -rf /scratch/raytemp_nathan
 ulimit -n 100000
 # pip install torch --index-url https://download.pytorch.org/whl/cu118
 eval "$(/admin/home-nathan/miniconda3/bin/conda shell.bash hook)"
-conda activate semantic_domrei
+conda activate semantic_doremi
 
 # source /admin/home-nathan/semantic_doremi/venv/bin/activate
 

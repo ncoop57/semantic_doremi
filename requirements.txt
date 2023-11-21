@@ -3,6 +3,6 @@ scikit-learn
 umap-learn
 submitit
 datasets
-faiss-cpu
+faiss-gpu
 transformers
 s3fs

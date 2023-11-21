@@ -9,8 +9,7 @@ from transformers import AutoModel
 import torch
 import time
 
-ray.init(address="auto", ignore_reinit_error=True) # , _temp_dir='/admin/home-nathan/semantic_doremi/ray_tmp/')
-# ray.init(include_dashboard=True, dashboard_host='0.0.0.0', dashboard_port=8265)
+ray.init(address="auto", ignore_reinit_error=True)
 
 fs = fsspec.filesystem("s3")
 file_list = fs.glob("s3://pile-everything-west/redpajama_raw/c4/*.jsonl")
